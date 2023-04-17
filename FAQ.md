@@ -143,7 +143,84 @@ try中语句中发生异常时，catch会捕捉到该异常，并终止try中后
 在具有虚函数的对象中存在一块指向虚函数表的指针，在调用虚函数时，会使用指针所指向的虚函数表，通过查询可以得到函数实例
 ### 单继承，多继承，菱形继承，虚继承时，对象内存中的差异区别？如果存在虚函数呢？
 https://www.likecs.com/show-204168790.html
-### 实现一个vector？是1.5还是2倍，各有什么优缺点？
+### 实现一个vector？是1.5还是2倍，各有什么优缺点
+vector简单实现仅供参考
+```
+template <typename T>
+class Vector {
+public:
+    Vector() : m_data(nullptr), m_size(0), m_capacity(0) {}
+    explicit Vector(size_t size) : m_data(new T[size]), m_size(size), m_capacity(size) {}
+    Vector(size_t size, const T& value) : m_data(new T[size]), m_size(size), m_capacity(size) {
+        for (size_t i = 0; i < m_size; ++i) {
+            m_data[i] = value;
+        }
+    }
+    Vector(const Vector& other) : m_data(new T[other.m_size]), m_size(other.m_size), m_capacity(other.m_capacity) {
+        for (size_t i = 0; i < m_size; ++i) {
+            m_data[i] = other.m_data[i];
+        }
+    }
+    Vector& operator=(const Vector& other) {
+        if (this != &other) {
+            delete[] m_data;
+            m_data = new T[other.m_size];
+            m_size = other.m_size;
+            m_capacity = other.m_capacity;
+            for (size_t i = 0; i < m_size; ++i) {
+                m_data[i] = other.m_data[i];
+            }
+        }
+        return *this;
+    }
+    ~Vector() {
+        delete[] m_data;
+    }
+    void push_back(const T& value) {
+        if (m_size >= m_capacity) {
+            reserve(m_capacity == 0 ? 1 : m_capacity * 2);
+        }
+        m_data[m_size++] = value;
+    }
+    void pop_back() {
+        if (m_size > 0) {
+            --m_size;
+        }
+    }
+    T& operator[](size_t index) {
+        return m_data[index];
+    }
+    const T& operator[](size_t index) const {
+        return m_data[index];
+    }
+    size_t size() const {
+        return m_size;
+    }
+    bool empty() const {
+        return m_size == 0;
+    }
+    size_t capacity() const {
+        return m_capacity;
+    }
+    void reserve(size_t capacity) {
+        if (capacity > m_capacity) {
+            T* new_data = new T[capacity];
+            for (size_t i = 0; i < m_size; ++i) {
+                new_data[i] = m_data[i];
+            }
+            delete[] m_data;
+            m_data = new_data;
+            m_capacity = capacity;
+        }
+    }
+private:
+    T* m_data;
+    size_t m_size;
+    size_t m_capacity;
+};
+```
+1.5倍内存利用率高，但是对于频繁插入，需要多次重复申请内存，性能可能更低  
+2倍性能更好，但是内存利用率低，可能因为超出实际所需要的内存，导致内存浪费
 ### map底层用了什么？
 红黑树和pair键值对
 ### 如果用map删除了一个元素，迭代器还能用吗？为什么？怎样做可以接着用？
@@ -155,8 +232,12 @@ erase方法会返回下一个节点的迭代器
 3. 叶子节点(NIL)必是黑色
 4. 不存在两个连续的红色节点相连
 5. 从任意一个节点到它所有可达的叶子节点所经过的黑色节点数目必相同
-### 红黑树如何插入和删除的？
 ### 红黑树和B+,B-的区别？
+1. 结构形态：红黑树是一种二叉搜索树，每个节点最多有两个子节点；而B+树和B-树是多叉树，每个节点可以有多个子节点。
+2. 存储方式：红黑树的节点包含键值对和指向左右子树的指针；B+树和B-树的节点只包含键值对，子节点的指针存储在父节点中。
+3. 查找效率：红黑树和B+树的查找效率都是O(log n)，但是B+树的查找效率更稳定，因为它的非叶子节点只包含键值而不包含数据，可以容纳更多的节点，减少了I/O操作次数；而B-树的查找效率可能会更高，因为它的非叶子节点包含了数据，可以减少I/O操作的次数。
+4. 插入和删除效率：红黑树的插入和删除操作效率较高，但是需要保持平衡性质，有一定的复杂度；B+树的插入和删除操作也比较高效，但是需要维护叶子节点的链表指针，增加了一些细节；B-树的插入和删除操作比较复杂，需要对节点进行合并和分裂。
+5. 应用场景：红黑树适用于需要频繁插入和删除的场景，如操作系统的内存管理等；B+树适用于需要支持范围查询和排序的场景，如数据库索引等；B-树适用于需要支持高并发和大规模访问的场景，如分布式文件系统等。
 ### 线程同步几种方式？
 1. 使用mutex作为互斥锁
     1. 互斥锁（当一个互斥锁未上锁时，在执行到lock时可以对其上锁并继续执行下文，当一个互斥锁已经上锁，那么该线程会在lock处阻塞，并直到互斥锁释放时继续上锁并执行）
@@ -230,18 +311,58 @@ do{
     //...
 }while(0);
 ```
-### 手写快排？时间复杂度？空间复杂度？能进行优化吗？还有吗？能进行尾递归优化吗？
+### C++内置的std::sort是如何进行排序的
+C++内置的sort函数是基于快速排序（Quick Sort）和插入排序（Insertion Sort）的混合排序（Hybrid Sort）算法。具体来说，当数组大小小于某个阈值（默认为16）时，sort函数采用插入排序进行排序；当数组大小大于等于阈值时，sort函数采用快速排序进行排序。此外，sort函数还实现了一些优化策略，如三点取中法（Median-of-Three Partitioning）选择枢轴，以及尾递归优化等，进一步提高了算法的效率。
 ### 线程池的作用是什么？
+1. 提高程序的并发性：线程池可以管理和调度多个线程，使得程序可以同时执行多个任务，提高了程序的并发性和吞吐量。
+2. 优化资源的利用：线程池可以在程序启动时预先创建一定数量的线程，并在需要时分配线程执行任务，避免了频繁创建和销毁线程的开销，优化了系统资源的利用。
+3. 提高代码的可维护性：线程池可以将任务的执行和线程的管理分离开来，使得代码结构更加清晰和易于维护。
+4. 提高程序的响应速度：由于线程池中的线程已经创建好，当任务到达时，可以直接分配线程执行任务，从而减少了线程创建和销毁的开销，提高了程序的响应速度。
 ### pthread_cond_signal和pthread_cond_broadcast的区别
-### TCP三次握手和四次挥手及各自的状态？
+pthread_cond_signal:唤醒等待在条件变量上的一个线程
+pthread_cond_broadcast:唤醒等待在条件变量上的所有线程，他们会竞争并重新获得锁
+### TCP三次握手和四次挥手及各自的状态？  
+
+三次握手过程：
+1. 客户端向服务器发送SYN报文，表示请求建立连接，并发送一个初始化序列号。
+2. 服务器接收到SYN报文后，向客户端发送SYN+ACK报文，表示接受连接请求，并发送一个确认序列号和一个初始化序列号。
+3. 客户端接收到SYN+ACK报文后，向服务器发送一个ACK报文，表示连接已经建立。  
+
+四次挥手过程：  
+1. 客户端向服务器发送FIN报文，表示要关闭连接。
+2. 服务器接收到FIN报文后，向客户端发送ACK报文，表示已经接收到关闭连接的请求。
+3. 服务器向客户端发送FIN报文，表示服务器也准备关闭连接。
+4. 客户端接收到FIN报文后，向服务器发送ACK报文，表示已经接收到关闭连接的请求。  
+
+三次握手和四次挥手的状态分别如下：  
+
+三次握手状态：  
+1. CLOSED：表示连接处于关闭状态。
+2. SYN_SENT：表示客户端发送了SYN报文，等待服务器的SYN+ACK报文。
+3. ESTABLISHED：表示连接已经建立，客户端和服务器可以进行数据传输。
+4. FIN_WAIT_1：表示客户端发送了FIN报文，等待服务器的ACK报文。
+5. FIN_WAIT_2：表示客户端已经收到服务器的ACK报文，等待服务器发送FIN报文。
+6. TIME_WAIT：表示客户端和服务器已经关闭连接，等待一定时间后释放资源。
+7. CLOSED_WAIT：表示服务器已经关闭连接，等待客户端发送FIN报文。
+8. LAST_ACK：表示服务器已经发送FIN报文，等待客户端发送ACK报文。  
+
+四次挥手状态：  
+1. CLOSED：表示连接处于关闭状态。
+2. FIN_WAIT_1：表示客户端发送了FIN报文，等待服务器的ACK报文。
+3. FIN_WAIT_2：表示客户端已经收到服务器的ACK报文，等待服务器发送FIN报文。
+4. TIME_WAIT：表示客户端和服务器已经关闭连接，等待一定时间后释放资源。
+5. CLOSE_WAIT：表示服务器已经关闭连接，等待客户端发送FIN报文。
+6. LAST_ACK：表示服务器已经发送FIN报文，等待客户端发送ACK报文。
+7. CLOSED：表示连接处于关闭状态。
 ### TCP如果两次握手会出什么问题？那三次握手又会造成什么问题？有什么好的解决方法没？
+
 ### TCP四次挥手为什么要有TIME_WAIT状态？为什么？
 ### 死锁的原因？条件？如何预防？又如何避免？如何解除？
 ### 排序稳定的算法，你知道那些？
-### 解决hash冲突的方法？
+### 解决hash冲突的方法？ 
 1. 链地址法
 在C++ STL中，unordered_set对于hash值一样但是元素不同的元素，会将其元素串成链表进行存储（链地址法），当链表长度超过一定的阈值，那么就会将链表转变为红黑树进行存储，当红黑树中存储的元素小于一定的阈值的时候，那么就会将他重新转变为链表  
-2. 开放地址法
+1. 开放地址法
    1. 线性探测法  冲突了就选择下一位，再冲突就选择下下位，以此类推
    2. 二次探测法  冲突了就选择平方取余后的位置，再冲突就继续计算
    3. 双重散列法  冲突了就选择其他hash算法继续运算，再冲突就继续计算
